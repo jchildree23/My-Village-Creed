@@ -1,0 +1,360 @@
+﻿@model HomeSD
+@{
+    var search = Request["Search"] != null && !string.IsNullOrEmpty(Request["Search"]) ? Request["Search"] : "";
+    var sponsor = !string.IsNullOrEmpty(ViewBag.Sponsor) ? (string)ViewBag.Sponsor : "";
+
+    if (!string.IsNullOrEmpty(search))
+    {
+        ViewBag.Title = "Results for '" + search + "'";
+    }
+    else if (!string.IsNullOrEmpty(sponsor))
+    {
+        ViewBag.Title = sponsor + " Services";
+    }
+    else
+    {
+        ViewBag.Title = "Services";
+    }
+   
+    
+    Layout = "~/Views/Shared/_SiteLayout.cshtml";
+}
+
+<style>
+    /**
+    * Grid container
+    */
+#tiles {
+    list-style-type: none;
+    position: relative; /** Needed to ensure items are laid out relative to this container **/
+    margin: 0;
+    padding: 0;
+}
+
+/**
+    * Grid items
+    */
+#tiles li {
+    width: 222px;
+    background-color: #F3F3F3;
+    border: 1px solid #dedede;
+    display: none; /** Hide items initially to avoid a flicker effect **/
+    padding: 10px;
+}
+
+#tiles li.inactive {
+    visibility: hidden;
+    opacity: 0;
+}
+
+#tiles li img {
+    display: block;
+}
+
+/**
+    * Grid item text
+    */
+#tiles li p {
+    color: #666;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: center;
+    font-weight: 200;
+    margin: 7px 0 2px 7px;
+}
+    
+    ul#tiles li p.title { color: #000;font-weight: bold; }
+    ul#tiles li p.impact { color: #000;font-weight: bold;font-size: 11px; }
+    
+    ul#tiles li a { display: block; }
+    ul#tiles li a:hover { text-decoration: none; }
+    
+    ul#tiles li .tile-content { position: relative; }
+    ul#tiles li .tile-like { float: right; }
+    ul#tiles li .tile-like a.liked { background: #368ee0; }
+    ul#tiles li .tile-meta { border-top: 1px solid #F1F1F1;margin-top: 7px;padding-top: 5px; }
+    ul#tiles li .tile-price { position: absolute; bottom: 0px; right: 0px;font-size:9px; }
+    ul#tiles li .tile-date { font-size: 10px; }
+    
+    .stuck {width: 1160px; position: fixed; top: 0; z-index: 10000; box-shadow:0 2px 4px rgba(0, 0, 0, .3); }
+    
+    .info { padding: 30px 0 60px 0; background: url(/Assets/img/dots.png) center center no-repeat; }
+    .info-step  { border: 1px solid #BBB; background: url(/Assets/img/nav-background.png) top left repeat; height: 300px; }
+    .info-step h2 { font-weight:normal; border-bottom: 1px solid #BBB; text-align: center; background: url(/Assets/img/nav-background.png) top left repeat; padding: 10px 0; margin: 0; }
+    .info-step p { padding: 10px; }
+    .info-step a { display: inline-block; }
+    
+    .info-step img.program-image { width: 108px; } 
+</style>
+
+<section class="page-top">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-12">
+				<h2>@ViewBag.Title</h2>
+			</div>
+		</div>
+	</div>
+</section>
+
+<section class="search" id="stick-it" style="width:100%;background:#FFF;padding:5px 0;">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-12">
+				@using (Html.BeginForm("Programs", "Site", FormMethod.Get, new { @id = "searchForm", @class = "form-inline" }))
+                {
+                    @Html.TextBox("Search", null, new { @placeholder = "search services...", @class = "form-control input-block-level search", @id = "q", @style = "width:100%;" })
+                }
+			</div>
+		</div>
+	</div>
+</section>
+
+<div id="program-tiles">
+    @if (Model.FilteredPrograms.Any())
+    {
+        <ul id="tiles">
+            @foreach (var program in Model.FilteredPrograms)
+            {
+                <li>
+                    <div class="tile-content">
+                        <a href="/Site/ViewProgram/@program.Program.Id">
+                            @if (!string.IsNullOrEmpty(program.Program.Image))
+                            {
+                                @Html.AmazonThumbnailImageLink(program.Program.Image, "tile-image", "height: 200px;")
+                            }
+                            <p class="title">@program.Program.Name</p>
+                            <p class="muted">@program.Program.Description.EllipsisAt(200)</p>
+                        </a>
+                        <div class="tile-meta">
+                                        @if (SessionVariables.CurrentUser != null)
+                                        {
+                                            <div class="tile-like">
+                                                @{
+                                                    var like = Model.ProgramLikes.FirstOrDefault(x => x.ProgramId.Equals(program.Program.Id) && x.UserId.Equals(SessionVariables.CurrentUser.Id));
+                                                    var likeClass = like != null ? "liked" : "";
+                                                    var likeCount = Model.ProgramLikes.Count(x => x.ProgramId.Equals(program.Program.Id));
+                                                    var title = likeCount != 1 ? "Likes" : "Like";
+                                                    var likeData = Model.ProgramLikes.FirstOrDefault(x => x.ProgramId.Equals(program.Program.Id));
+                                                    var nameList = new List<string>();
+
+                                                    foreach (var li in Model.ProgramLikes.Where(x => x.ProgramId == program.Program.Id))
+                                                    {
+                                                        nameList.Add(li.DisplayName);
+                                                    }
+
+                                                    string combindedString = "";
+                                                    if (nameList != (null))
+                                                    {
+                                                        combindedString = string.Join("\r\n", nameList.ToArray());
+
+                                                    }
+
+                                                    var likeName = "";
+                                                    if (likeData != null)
+                                                    {
+                                                        likeName = combindedString;
+
+                                                    }
+
+
+                                                }
+                                                @*<a href="/Programs/Like/@program.Program.Id" class="like-button badge @likeClass" data-popover="true" data-html="true" data-content="@likeName"><p class="impact">IE @likeCount</p></a>*@
+                                                <a href="/Programs/Like/@program.Program.Id" id="example" rel="tooltip" class="like-button badge @likeClass" data-delay='{"show": 100, "hide": 5000}' data-html="true" data-original-title="<div>@likeName</div>">IE @likeCount</a>
+                                            </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="tile-like">
+                                                            @{
+                                                                //var like = Model.ProgramLikes.FirstOrDefault(x => x.ProgramId.Equals(program.Program.Id) && x.UserId.Equals(SessionVariables.CurrentUser.Id));
+                                                                //var likeClass = like != null ? "liked" : "";
+                                                                var likeCount = Model.ProgramLikes.Count(x => x.ProgramId.Equals(program.Program.Id));
+                                                                var title = likeCount != 1 ? "Likes" : "Like";
+                                                                var likeData = Model.ProgramLikes.FirstOrDefault(x => x.ProgramId.Equals(program.Program.Id));
+                                                                var nameList = new List<string>();
+
+                                                                foreach (var li in Model.ProgramLikes.Where(x => x.ProgramId == program.Program.Id))
+                                                                {
+                                                                    nameList.Add(li.DisplayName);
+                                                                }
+
+                                                                string combindedString = "";
+                                                                if (nameList != (null))
+                                                                {
+                                                                    combindedString = string.Join("\r\n", nameList.ToArray());
+
+                                                                }
+
+                                                                var likeName = "";
+                                                                if (likeData != null)
+                                                                {
+                                                                    likeName = combindedString;
+
+                                                                }
+
+
+                                                            }
+                                                            <span rel="tooltip" class="like-button badge" data-html="true" data-original-title="<div>@likeName</div>">IE @likeCount</span>
+                                                        </div>
+                                                    }
+                                        @if (!program.Program.Type.Equals(ProgramTypes.AvailableAnytime))
+                                        {
+                                            if (program.Program.UnlimitedParticipantSlots || program.Program.ParticipantSlots > 0)
+                                            {
+                                                if (program.Program.UnlimitedParticipantSlots)
+                                                {
+                                                    <span class="fa fa-user" rel="tooltip" title="Unlimited participant Spots Remaining"></span>
+                                                }
+                                                else
+                                                {
+                                                    var remaining = program.Program.ParticipantSlots - program.ParticipantCount;
+                                                    if (remaining != 0) { 
+                                                        <span class="fa fa-user" rel="tooltip" title="@remaining participant spots remaining"></span>
+                                                    }
+                                                }
+                                            }
+                                            <!--else
+                                            {
+                                                <span class="fa fa-user" rel="tooltip" title="This program does not allow participants"></span>
+                                            }-->
+
+                                            if (program.Program.UnlimitedVolunteerSlots || program.Program.VolunteerSlots > 0)
+                                            {
+                                                if (program.Program.UnlimitedVolunteerSlots)
+                                                {
+                                                    <span class="fa fa-users" rel="tooltip" title="Unlimited volunteer spots remaining"></span>
+                                                }
+                                                else
+                                                {
+                                                    var remaining = program.Program.VolunteerSlots - program.VolunteerCount;
+
+                                                    if (remaining != 0)
+                                                    {
+                                                        <span class="fa fa-users" rel="tooltip" title="@remaining volunteer spots remaining"></span>
+                                                    }
+                                                }
+                                            }
+                                            <!--else
+                                            {
+                                                <span class="fa fa-users" rel="tooltip" title="This service does not allow volunteers"></span>
+                                            }
+                                            -->
+                                        }
+                                        @if (program.Program.BackgroundCheckFingerprint && program.Program.VolunteerSlots != 0)
+                                        {
+                                            <span><span class="fa fa-check" rel="tooltip" title="Background check required for volunteers"></span></span>
+                                        }
+                                        @if (program.Program.Mobile)
+                                        {
+                                            <span><span class="fa fa-car" rel="tooltip" title="This service is mobile and moves to different locations"></span></span>
+                                        }
+                                        @if (program.Program.SafePlace)
+                                        {
+                                            <span><span class="glyphicon glyphicon-home" rel="tooltip" title="This service is a safe place"></span></span>
+                                        }
+                                        @if (program.Program.ChildAbuse)
+                                        {
+                                            <span><span class="fa fa-legal" rel="tooltip" title="This service is for child abuse / neglect"></span></span>
+                                        }
+                                        @if (program.Program.BadgeCertification)
+                                        {
+                                            <span><span class="fa fa-trophy" rel="tooltip" title="Badge awarded upon service completion"></span></span>
+                                        }
+                                        @if (program.Program.EthosHourNotAvailable)
+                                        {
+                                            <span><span class="fa fa-ban" rel="tooltip" title="Ethos service hours not available for this service"></span></span>
+                                        }
+                                        <div class="tile-date">
+                                            @program.Program.StartDate
+                                            @if (!string.IsNullOrEmpty(program.Program.StopDate) && !program.Program.StopDate.Equals(program.Program.StartDate))
+                                            {
+                                                <span> - @program.Program.StopDate</span>
+                                            }
+                                        </div>
+                                    </div>
+                        @*<span class="label label-success tile-price">
+                            @if (program.Program.Cost > 0)
+                            {
+                                @program.Program.Cost.ToString("C")
+                            }
+                            else
+                            {
+                                <text>Free</text>
+                            }
+                        </span>*@
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <strong>No results.</strong> Sorry your searched didn't return any results.  Please broaden your search and try again!
+        </div>
+    }
+</div>
+
+<script type="text/javascript">
+    
+
+    (function ($) {
+        var handler = $('#tiles li');
+
+        handler.wookmark({
+            // Prepare layout options.
+            autoResize: true, // This will auto-update the layout when the browser window is resized.
+            container: $('#program-tiles'), // Optional, used for some extra CSS styling
+            offset: 30, // Optional, the distance between grid items
+            outerOffset: 30 // Optional, the distance to the containers border
+        });
+
+        $('.filter-more').click(function (e) {
+            e.preventDefault();
+
+            $("#filter-more").slideToggle("fast");
+            $(".tagsinput").css({ "height": "30px" });
+            $(".tagsinput").css({ "width": "222px" });
+        });
+
+        $('.like-button').click(function (e) {
+            e.preventDefault();
+
+            var button = $(this);
+
+            if (button.hasClass("liked")) {
+                button.removeClass("liked");
+            } else {
+                button.addClass("liked");
+            }
+
+            $.ajax({
+                url: button.attr("href")
+            }).done(function () {
+
+            });
+        });
+
+        var $cache = $('#stick-it');
+
+        //store the initial position of the element
+        var vTop = $cache.offset().top - parseFloat($cache.css('margin-top').replace(/auto/, 0));
+        $(window).scroll(function (event) {
+            // what the y position of the scroll is
+            var y = $(this).scrollTop();
+
+            // whether that's below the form
+            if (y >= vTop) {
+                // if so, ad the fixed class
+                $cache.addClass('stuck');
+                $("div.main").addClass('pad-top');
+            } else {
+                // otherwise remove it
+                $cache.removeClass('stuck');
+                $("div.main").removeClass('pad-top');
+            }
+        });
+
+    })(jQuery);
+</script>
